@@ -2,9 +2,11 @@ package zek
 
 import (
 	"encoding/xml"
+	"fmt"
 	"io"
 	"reflect"
 	"strings"
+	"unicode"
 
 	"golang.org/x/net/html/charset"
 )
@@ -19,6 +21,7 @@ type Node struct {
 	Children    []*Node    `json:"children,omitempty"`
 	Freqs       []int      `json:"-"` // Collect number of occurrences of this node within parent.
 	MaxExamples int        `json:"-"` // Maximum number of examples to keep, gets passed to children.
+	//Type        string
 
 	childFreqs map[xml.Name]int // Count child tag occurrences, used temporarily.
 }
@@ -58,11 +61,16 @@ func readNode(r io.Reader, root *Node, maxExamples int) (node *Node, n int64, er
 			n := stack.Pop().(*Node)
 			n.End()
 		case xml.CharData:
+			// TODO: This seems like the place that we parse types??
 			v := strings.TrimSpace(string(t))
 			if v == "" {
 				break
 			}
+			fmt.Printf("%s\n", v)
 			n := stack.Peek().(*Node)
+			//n.Type = parseType(n, v)
+
+			fmt.Printf("determined type: %s\n", parseType(n, v))
 			if len(n.Examples) < maxExamples {
 				// XXX: sample better, e.g. reservoir dictionary.
 				n.Examples = append(n.Examples, v)
@@ -72,6 +80,47 @@ func readNode(r io.Reader, root *Node, maxExamples int) (node *Node, n int64, er
 
 	stack.Pop()
 	return root, cw.n, nil
+}
+
+// Given a string from chardata, attempt to parse the type.
+func parseType(n *Node, s string) (ret string) {
+	ret = "string"
+	if n.Type == "string" {
+		ret = "string"
+		return
+	}
+	// Our only special case
+	if strings.ToLower(s) == "true" || strings.ToLower(s) == "false" {
+		ret = "bool"
+		return
+	}
+
+	allNums := true
+	hasDecimal := false
+
+	isDot := func(r rune) bool {
+		return r == '.'
+	}
+
+	for _, r := range s {
+		if unicode.IsDigit(r) {
+			continue
+		} else if isDot(r) && allNums && !hasDecimal {
+			hasDecimal = true
+		} else if isDot(r) && allNums && hasDecimal {
+			allNums = false
+		} else {
+			allNums = false
+		}
+	}
+
+	if allNums && !hasDecimal {
+		ret = "int"
+	} else if allNums && hasDecimal {
+		ret = "float64"
+	}
+
+	return
 }
 
 // ReadFromAll builds a single node from all readers.
