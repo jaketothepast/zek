@@ -235,7 +235,11 @@ func (sw *StructWriter) writeNode(node *Node, top bool) (err error) {
 		return err
 	}
 
-	io.WriteString(sew, "struct {\n")
+	if node.IsMultivalued() {
+		io.WriteString(sew, "struct {\n")
+	} else {
+		io.WriteString(sew, fmt.Sprintf("%s\n", node.Type))
+	}
 	if top {
 		sw.writeNameField(sew, node)
 	}

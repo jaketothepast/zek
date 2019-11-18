@@ -21,7 +21,7 @@ type Node struct {
 	Children    []*Node    `json:"children,omitempty"`
 	Freqs       []int      `json:"-"` // Collect number of occurrences of this node within parent.
 	MaxExamples int        `json:"-"` // Maximum number of examples to keep, gets passed to children.
-	//Type        string
+	Type        string
 
 	childFreqs map[xml.Name]int // Count child tag occurrences, used temporarily.
 }
@@ -68,7 +68,7 @@ func readNode(r io.Reader, root *Node, maxExamples int) (node *Node, n int64, er
 			}
 			fmt.Printf("%s\n", v)
 			n := stack.Peek().(*Node)
-			//n.Type = parseType(n, v)
+			n.Type = parseType(n, v)
 
 			fmt.Printf("determined type: %s\n", parseType(n, v))
 			if len(n.Examples) < maxExamples {
